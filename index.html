@@ -1,0 +1,965 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#07172d">
+  <title>FlyYab | فرودگاه‌های جهان</title>
+  <meta name="description" content="نقشه و راهنمای کاربردی فرودگاه‌های جهان">
+  <link rel="preconnect" href="https://unpkg.com">
+  <link rel="preconnect" href="https://tile.openstreetmap.org">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIINfQ3rAJHdxgZO0jMZ5rhn6cz6x4q9Y8M=" crossorigin="">
+  <style>
+    :root {
+      --navy-950:#061426;
+      --navy-900:#0a1b31;
+      --navy-800:#102742;
+      --blue:#1e63e9;
+      --blue-dark:#1649ad;
+      --teal:#0b8f88;
+      --purple:#7857d8;
+      --red:#c74444;
+      --gray:#64748b;
+      --paper:#f4f7fb;
+      --surface:#ffffff;
+      --text:#132238;
+      --muted:#637083;
+      --line:#dbe3ec;
+      --focus:#f5b940;
+      --shadow:0 18px 44px rgba(10,27,49,.16);
+      --header-h:58px;
+      --search-h:70px;
+      --sheet-collapsed:74px;
+      --safe-bottom:env(safe-area-inset-bottom,0px);
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0}
+    body{
+      overflow:hidden;
+      background:var(--paper);
+      color:var(--text);
+      font-family:Tahoma,Arial,sans-serif;
+      -webkit-font-smoothing:antialiased;
+    }
+
+    button,input,select{font:inherit}
+    button{cursor:pointer}
+    button:focus-visible,input:focus-visible,select:focus-visible{
+      outline:3px solid rgba(245,185,64,.72);
+      outline-offset:2px;
+    }
+
+    .app{
+      height:100dvh;
+      min-height:520px;
+      display:grid;
+      grid-template-rows:var(--header-h) var(--search-h) 1fr;
+      overflow:hidden;
+    }
+
+    .topbar{
+      z-index:900;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:0 16px;
+      background:var(--navy-950);
+      color:#fff;
+      border-bottom:1px solid rgba(255,255,255,.09);
+    }
+
+    .brand{display:flex;align-items:center;gap:10px}
+    .brand-mark{
+      width:30px;height:30px;border:1px solid rgba(255,255,255,.25);
+      border-radius:9px;display:grid;place-items:center;
+    }
+    .brand-mark svg{width:19px;height:19px}
+    .brand-name{font-weight:800;letter-spacing:.2px}
+    .brand-sub{font-size:11px;color:#aebbd0;margin-top:2px}
+
+    .icon-btn{
+      width:44px;height:44px;border:0;border-radius:12px;background:transparent;
+      display:grid;place-items:center;color:inherit;
+    }
+    .icon-btn:hover{background:rgba(255,255,255,.08)}
+    .icon-btn svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2}
+
+    .search-zone{
+      z-index:850;
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding:10px 14px;
+      background:var(--surface);
+      border-bottom:1px solid var(--line);
+      box-shadow:0 2px 9px rgba(9,31,58,.06);
+    }
+
+    .search-wrap{position:relative;flex:1;max-width:860px;margin:auto}
+    .search-wrap svg{
+      position:absolute;right:14px;top:50%;transform:translateY(-50%);
+      width:21px;height:21px;stroke:#738196;fill:none;stroke-width:2;
+      pointer-events:none;
+    }
+
+    #searchInput{
+      width:100%;
+      height:48px;
+      border:1px solid #cdd8e5;
+      border-radius:14px;
+      padding:0 48px 0 42px;
+      background:#f9fbfd;
+      color:var(--text);
+      direction:rtl;
+    }
+    #searchInput::placeholder{color:#7f8b9a}
+    #searchInput:focus{background:#fff;border-color:#5288ed}
+
+    .clear-search{
+      position:absolute;left:5px;top:50%;transform:translateY(-50%);
+      width:38px;height:38px;border:0;border-radius:10px;background:transparent;
+      display:none;place-items:center;color:#708096;
+    }
+    .clear-search.visible{display:grid}
+    .clear-search svg{position:static;transform:none;width:18px;height:18px}
+
+    .search-results{
+      position:absolute;z-index:1300;
+      top:56px;right:0;left:0;
+      max-height:min(52dvh,420px);
+      overflow:auto;
+      background:#fff;
+      border:1px solid var(--line);
+      border-radius:16px;
+      box-shadow:var(--shadow);
+      display:none;
+    }
+    .search-results.open{display:block}
+    .search-result{
+      width:100%;border:0;background:#fff;padding:12px 14px;
+      display:grid;grid-template-columns:52px 1fr;gap:12px;text-align:right;
+      border-bottom:1px solid #edf1f5;
+    }
+    .search-result:last-child{border-bottom:0}
+    .search-result:hover,.search-result.active{background:#f1f6ff}
+    .code{
+      direction:ltr;unicode-bidi:isolate;
+      display:inline-flex;align-items:center;justify-content:center;
+      min-width:48px;height:32px;padding:0 8px;border-radius:9px;
+      background:#eaf1ff;color:#154ba7;font-weight:800;letter-spacing:1px;
+    }
+    .result-name{font-weight:700;line-height:1.5}
+    .result-meta{font-size:12px;color:var(--muted);margin-top:2px}
+
+    .workspace{position:relative;min-height:0;overflow:hidden}
+    #map{position:absolute;inset:0;background:#dfe8f0}
+    .leaflet-control-attribution{font-size:10px!important}
+    .leaflet-control-container{direction:ltr}
+
+    .map-scrim{
+      position:absolute;z-index:700;inset:0;
+      display:flex;align-items:center;justify-content:center;
+      background:rgba(7,23,45,.16);
+      backdrop-filter:blur(1.5px);
+      transition:opacity .2s ease;
+    }
+    .map-scrim.hidden{opacity:0;pointer-events:none}
+    .unlock-card{
+      width:min(330px,calc(100% - 36px));
+      background:rgba(255,255,255,.96);
+      border:1px solid rgba(255,255,255,.85);
+      border-radius:18px;
+      padding:18px;
+      box-shadow:var(--shadow);
+      text-align:center;
+    }
+    .unlock-icon{
+      width:48px;height:48px;margin:0 auto 10px;border-radius:14px;
+      display:grid;place-items:center;background:#eaf1ff;color:var(--blue);
+    }
+    .unlock-icon svg{width:26px;height:26px;stroke:currentColor;fill:none;stroke-width:2}
+    .unlock-title{font-weight:800;font-size:16px}
+    .unlock-copy{font-size:13px;color:var(--muted);line-height:1.7;margin:6px 0 14px}
+    .primary-btn{
+      border:0;border-radius:12px;min-height:44px;padding:0 18px;
+      background:var(--blue);color:#fff;font-weight:800;
+    }
+    .primary-btn:hover{background:var(--blue-dark)}
+
+    .map-tools{
+      position:absolute;z-index:720;
+      top:14px;left:14px;
+      display:flex;flex-direction:column;gap:9px;
+      direction:ltr;
+    }
+    .map-tool{
+      width:46px;height:46px;border:1px solid rgba(18,42,69,.16);
+      border-radius:13px;background:#fff;color:#20334d;
+      display:grid;place-items:center;
+      box-shadow:0 8px 22px rgba(6,20,38,.14);
+    }
+    .map-tool:hover{background:#f4f7fb}
+    .map-tool svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:2}
+    .map-tool.locked{color:var(--red)}
+
+    .legend{
+      position:absolute;z-index:710;top:14px;right:14px;
+      background:rgba(255,255,255,.95);
+      border:1px solid rgba(18,42,69,.12);
+      border-radius:13px;
+      box-shadow:0 8px 22px rgba(6,20,38,.12);
+      overflow:hidden;
+    }
+    .legend summary{
+      min-height:44px;padding:0 13px;display:flex;align-items:center;gap:8px;
+      list-style:none;font-size:12px;font-weight:800;cursor:pointer;
+    }
+    .legend summary::-webkit-details-marker{display:none}
+    .legend-body{padding:0 13px 11px;display:grid;gap:7px}
+    .legend-item{display:flex;align-items:center;gap:8px;font-size:11px;color:#48566a}
+    .legend-dot{width:13px;height:13px;border-radius:4px;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.16)}
+
+    .airport-marker-shell{background:transparent;border:0}
+    .airport-marker{
+      position:relative;
+      min-width:46px;height:28px;
+      padding:0 8px;
+      border:2px solid #fff;border-radius:8px;
+      display:flex;align-items:center;justify-content:center;
+      color:#fff;
+      font:800 11px/1 Arial,sans-serif;
+      letter-spacing:.8px;
+      box-shadow:0 4px 12px rgba(6,20,38,.35);
+      transform-origin:center bottom;
+      transition:transform .12s ease,filter .12s ease;
+    }
+    .airport-marker:after{
+      content:"";position:absolute;bottom:-6px;left:50%;transform:translateX(-50%) rotate(45deg);
+      width:8px;height:8px;background:inherit;border-right:2px solid #fff;border-bottom:2px solid #fff;
+    }
+    .airport-marker.international{background:var(--blue)}
+    .airport-marker.regional{background:var(--teal)}
+    .airport-marker.small{background:var(--gray)}
+    .airport-marker.heliport{background:var(--purple);border-radius:50%;min-width:30px;width:30px;padding:0}
+    .airport-marker.closed{background:var(--red);text-decoration:line-through}
+    .airport-marker.selected{filter:drop-shadow(0 0 5px rgba(245,185,64,.95));transform:scale(1.14)}
+    .airport-marker.no-code{min-width:20px;width:20px;height:20px;padding:0;border-radius:50%;font-size:0}
+    .airport-marker.no-code:after{bottom:-4px;width:6px;height:6px}
+
+    .mobile-sheet{
+      position:absolute;z-index:1000;
+      right:0;left:0;bottom:0;
+      height:min(80dvh,720px);
+      padding-bottom:var(--safe-bottom);
+      background:#fff;
+      border-radius:22px 22px 0 0;
+      box-shadow:0 -12px 36px rgba(6,20,38,.22);
+      transform:translateY(calc(100% - var(--sheet-collapsed) - var(--safe-bottom)));
+      transition:transform .25s cubic-bezier(.2,.8,.2,1);
+      will-change:transform;
+      touch-action:none;
+    }
+    .mobile-sheet.half{transform:translateY(42%)}
+    .mobile-sheet.full{transform:translateY(0)}
+    .sheet-header{
+      position:relative;z-index:3;
+      min-height:74px;
+      display:flex;align-items:center;
+      padding:16px 18px 10px;
+      border-bottom:1px solid #edf1f5;
+      background:#fff;border-radius:22px 22px 0 0;
+      touch-action:none;
+    }
+    .grabber{
+      position:absolute;top:8px;left:50%;transform:translateX(-50%);
+      width:44px;height:5px;border-radius:999px;background:#cdd6e1;
+    }
+    .sheet-summary{padding-top:5px;flex:1}
+    .sheet-title{font-weight:800;font-size:14px}
+    .sheet-subtitle{font-size:11px;color:var(--muted);margin-top:4px}
+    .sheet-close{
+      position:relative;z-index:8;
+      width:48px;height:48px;margin-right:auto;border:0;border-radius:13px;
+      display:none;place-items:center;background:#edf2f7;color:#24364f;
+      flex:0 0 auto;
+    }
+    .sheet-close.visible{display:grid}
+    .sheet-close svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2.2}
+    .sheet-body{
+      height:calc(100% - 74px - var(--safe-bottom));
+      overflow:auto;
+      overscroll-behavior:contain;
+      touch-action:pan-y;
+      padding:14px 16px 24px;
+    }
+
+    .result-list{display:grid;gap:10px}
+    .airport-card{
+      width:100%;border:1px solid var(--line);border-radius:15px;background:#fff;
+      padding:13px;text-align:right;display:grid;grid-template-columns:58px 1fr auto;gap:11px;
+      align-items:center;
+    }
+    .airport-card:hover{background:#f8fbff;border-color:#b8cbed}
+    .airport-card-code{
+      direction:ltr;unicode-bidi:isolate;
+      width:52px;height:40px;border-radius:10px;display:grid;place-items:center;
+      color:#fff;font-weight:800;letter-spacing:1px;
+    }
+    .airport-card-name{font-weight:800;font-size:13px;line-height:1.55}
+    .airport-card-meta{color:var(--muted);font-size:11px;margin-top:3px}
+    .airport-card-arrow{width:28px;height:28px;color:#718096}
+    .airport-card-arrow svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2}
+
+    .detail{display:none}
+    .detail.active{display:block}
+    .detail-hero{
+      background:linear-gradient(140deg,#0a1b31,#12345d);
+      color:#fff;border-radius:18px;padding:18px;
+    }
+    .detail-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+    .detail-code{
+      direction:ltr;unicode-bidi:isolate;font:900 30px/1 Arial,sans-serif;letter-spacing:2px
+    }
+    .detail-icao{direction:ltr;unicode-bidi:isolate;color:#bed0e9;font-size:12px;margin-top:5px}
+    .status{
+      display:inline-flex;align-items:center;min-height:30px;padding:0 10px;border-radius:999px;
+      background:rgba(255,255,255,.13);font-size:11px;font-weight:700;
+    }
+    .detail-name{font-size:18px;font-weight:900;line-height:1.6;margin-top:15px}
+    .detail-location{color:#cbd8e9;font-size:12px;margin-top:5px}
+    .actions{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+    .action-btn{
+      min-height:44px;border:1px solid rgba(255,255,255,.22);border-radius:11px;
+      background:rgba(255,255,255,.08);color:#fff;display:flex;align-items:center;
+      justify-content:center;gap:7px;font-size:11px;font-weight:800;
+    }
+    .action-btn svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2}
+    .action-btn:hover{background:rgba(255,255,255,.15)}
+
+    .section{margin-top:16px}
+    .section h2{font-size:14px;margin:0 0 10px}
+    .facts{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+    .fact{border:1px solid var(--line);border-radius:13px;padding:11px;background:#fbfcfe}
+    .fact-label{font-size:10px;color:var(--muted)}
+    .fact-value{font-size:12px;font-weight:800;margin-top:6px;line-height:1.5}
+    .fact-value.ltr{direction:ltr;unicode-bidi:isolate;text-align:left}
+
+    .runway-card{
+      border:1px solid var(--line);border-radius:14px;padding:13px;background:#fff;margin-bottom:9px
+    }
+    .runway-title{font-weight:900;direction:ltr;unicode-bidi:isolate;text-align:right}
+    .runway-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:10px}
+    .runway-item{font-size:11px;color:var(--muted)}
+    .runway-item strong{display:block;color:var(--text);font-size:12px;margin-top:3px}
+
+    .source-note{
+      margin-top:15px;padding:12px;border-radius:12px;background:#f1f5f9;color:#617083;
+      font-size:10px;line-height:1.8;
+    }
+
+    .desktop-panel{display:none}
+
+    .toast{
+      position:fixed;z-index:2000;bottom:92px;left:50%;
+      transform:translate(-50%,18px);
+      min-width:220px;max-width:calc(100% - 32px);
+      padding:12px 16px;border-radius:12px;background:#102742;color:#fff;
+      text-align:center;font-size:12px;opacity:0;pointer-events:none;transition:.2s;
+      box-shadow:var(--shadow);
+    }
+    .toast.show{opacity:1;transform:translate(-50%,0)}
+
+    @media (min-width: 900px){
+      :root{--search-h:76px}
+      .app{grid-template-rows:var(--header-h) 1fr}
+      .search-zone{
+        position:absolute;z-index:950;top:74px;right:24px;
+        width:420px;height:auto;border:0;border-radius:17px;padding:10px;
+        box-shadow:var(--shadow);
+      }
+      .workspace{grid-row:2}
+      .legend{top:24px;right:24px}
+      .map-tools{top:24px;left:24px}
+      .mobile-sheet{display:none}
+      .desktop-panel{
+        display:block;position:absolute;z-index:920;
+        top:94px;right:24px;bottom:24px;width:420px;
+        background:#fff;border-radius:18px;box-shadow:var(--shadow);
+        overflow:hidden;
+      }
+      .desktop-panel .panel-head{
+        height:64px;padding:0 16px;display:flex;align-items:center;
+        border-bottom:1px solid var(--line);
+      }
+      .desktop-panel .panel-body{
+        height:calc(100% - 64px);overflow:auto;padding:14px;
+      }
+      .desktop-close{
+        width:44px;height:44px;border:0;border-radius:12px;background:#edf2f7;
+        display:none;place-items:center;margin-right:auto;
+      }
+      .desktop-close.visible{display:grid}
+      .desktop-close svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:2}
+      .search-zone{top:72px;right:458px;width:min(520px,calc(100vw - 530px))}
+      .legend{right:auto;left:84px}
+      .map-scrim{right:444px}
+      .toast{bottom:30px}
+    }
+
+    @media (max-width: 420px){
+      .topbar{padding:0 11px}
+      .search-zone{padding:9px 10px}
+      .legend{top:10px;right:10px}
+      .map-tools{top:10px;left:10px}
+      .legend-body{display:none}
+      .legend[open] .legend-body{display:grid}
+      .unlock-card{padding:15px}
+      .actions{grid-template-columns:1fr}
+      .facts{grid-template-columns:1fr 1fr}
+    }
+
+    @media (prefers-reduced-motion:reduce){
+      *{scroll-behavior:auto!important;transition:none!important}
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M3 12h18M12 3l3 9-3 9-3-9 3-9Z"/></svg>
+      </div>
+      <div>
+        <div class="brand-name">FlyYab</div>
+        <div class="brand-sub">فرودگاه‌های جهان</div>
+      </div>
+    </div>
+    <button class="icon-btn" id="menuBtn" aria-label="منو">
+      <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
+  </header>
+
+  <section class="search-zone" aria-label="جست‌وجوی فرودگاه">
+    <div class="search-wrap">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+      <input id="searchInput" type="search" autocomplete="off" placeholder="فرودگاه، شهر، کشور، IATA یا ICAO" aria-label="جست‌وجوی فرودگاه">
+      <button class="clear-search" id="clearSearch" aria-label="پاک‌کردن جست‌وجو">
+        <svg viewBox="0 0 24 24"><path d="m7 7 10 10M17 7 7 17"/></svg>
+      </button>
+      <div class="search-results" id="searchResults" role="listbox"></div>
+    </div>
+  </section>
+
+  <main class="workspace">
+    <div id="map" aria-label="نقشه فرودگاه‌های جهان"></div>
+
+    <div class="map-scrim" id="mapScrim">
+      <div class="unlock-card">
+        <div class="unlock-icon">
+          <svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+        </div>
+        <div class="unlock-title">نقشه در حالت قفل است</div>
+        <div class="unlock-copy">برای حرکت و زوم نقشه، آن را فعال کنید. اسکرول صفحه تا قبل از فعال‌سازی درگیر نقشه نمی‌شود.</div>
+        <button class="primary-btn" id="unlockMap">فعال‌کردن نقشه</button>
+      </div>
+    </div>
+
+    <div class="map-tools" aria-label="کنترل‌های نقشه">
+      <button class="map-tool" id="zoomIn" aria-label="بزرگ‌نمایی">
+        <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
+      <button class="map-tool" id="zoomOut" aria-label="کوچک‌نمایی">
+        <svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg>
+      </button>
+      <button class="map-tool" id="locateBtn" aria-label="موقعیت من">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="9"/><path d="M12 1v3M12 20v3M1 12h3M20 12h3"/></svg>
+      </button>
+      <button class="map-tool locked" id="lockBtn" aria-label="قفل نقشه">
+        <svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+      </button>
+    </div>
+
+    <details class="legend">
+      <summary>
+        <span class="legend-dot" style="background:#1e63e9"></span>
+        راهنمای نقشه
+      </summary>
+      <div class="legend-body">
+        <div class="legend-item"><span class="legend-dot" style="background:#1e63e9"></span>بین‌المللی</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#0b8f88"></span>منطقه‌ای و داخلی</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#64748b"></span>کوچک</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#7857d8"></span>هلی‌پورت</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#c74444"></span>بسته</div>
+      </div>
+    </details>
+
+    <aside class="mobile-sheet" id="mobileSheet" aria-label="نتایج و اطلاعات فرودگاه">
+      <div class="sheet-header" id="sheetHeader">
+        <div class="grabber" aria-hidden="true"></div>
+        <div class="sheet-summary">
+          <div class="sheet-title" id="sheetTitle">فرودگاه‌های روی نقشه</div>
+          <div class="sheet-subtitle" id="sheetSubtitle">برای مشاهده فهرست، پنل را به بالا بکشید</div>
+        </div>
+        <button class="sheet-close" id="sheetClose" aria-label="بستن اطلاعات فرودگاه">
+          <svg viewBox="0 0 24 24"><path d="m7 7 10 10M17 7 7 17"/></svg>
+        </button>
+      </div>
+      <div class="sheet-body">
+        <div class="result-list" id="mobileList"></div>
+        <div class="detail" id="mobileDetail"></div>
+      </div>
+    </aside>
+
+    <aside class="desktop-panel" id="desktopPanel">
+      <div class="panel-head">
+        <div>
+          <div class="sheet-title" id="desktopTitle">فرودگاه‌های روی نقشه</div>
+          <div class="sheet-subtitle" id="desktopSubtitle">یک فرودگاه را انتخاب کنید</div>
+        </div>
+        <button class="desktop-close" id="desktopClose" aria-label="بستن اطلاعات فرودگاه">
+          <svg viewBox="0 0 24 24"><path d="m7 7 10 10M17 7 7 17"/></svg>
+        </button>
+      </div>
+      <div class="panel-body">
+        <div class="result-list" id="desktopList"></div>
+        <div class="detail" id="desktopDetail"></div>
+      </div>
+    </aside>
+  </main>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+(function(){
+  "use strict";
+
+  const AIRPORTS = [
+    {iata:"IKA",icao:"OIIE",name:"فرودگاه بین‌المللی امام خمینی",en:"Imam Khomeini International Airport",city:"تهران",country:"ایران",lat:35.4161,lng:51.1522,type:"international",elevation:"۱٬۰۰۷ متر",timezone:"Asia/Tehran",status:"فعال",runways:[["11L / 29R","۴٬۱۹۸ متر","۴۵ متر","آسفالت"],["11R / 29L","۴٬۲۴۹ متر","۴۵ متر","آسفالت"]]},
+    {iata:"THR",icao:"OIII",name:"فرودگاه مهرآباد",en:"Mehrabad International Airport",city:"تهران",country:"ایران",lat:35.6892,lng:51.3134,type:"international",elevation:"۱٬۲۰۸ متر",timezone:"Asia/Tehran",status:"فعال",runways:[["09 / 27","۴٬۰۳۰ متر","۶۰ متر","آسفالت"],["11 / 29","۳٬۹۹۲ متر","۴۵ متر","آسفالت"]]},
+    {iata:"MHD",icao:"OIMM",name:"فرودگاه بین‌المللی شهید هاشمی‌نژاد",en:"Mashhad International Airport",city:"مشهد",country:"ایران",lat:36.2352,lng:59.6410,type:"international",elevation:"۹۹۵ متر",timezone:"Asia/Tehran",status:"فعال",runways:[["13R / 31L","۳٬۹۲۵ متر","۴۵ متر","آسفالت"],["13L / 31R","۳٬۸۱۲ متر","۴۵ متر","آسفالت"]]},
+    {iata:"SYZ",icao:"OISS",name:"فرودگاه بین‌المللی شهید دستغیب",en:"Shiraz International Airport",city:"شیراز",country:"ایران",lat:29.5392,lng:52.5898,type:"international",elevation:"۱٬۵۰۰ متر",timezone:"Asia/Tehran",status:"فعال",runways:[["11R / 29L","۴٬۲۷۲ متر","۴۵ متر","آسفالت"],["11L / 29R","۴٬۳۳۴ متر","۴۵ متر","آسفالت"]]},
+    {iata:"TBZ",icao:"OITT",name:"فرودگاه بین‌المللی شهید مدنی",en:"Tabriz International Airport",city:"تبریز",country:"ایران",lat:38.1339,lng:46.2350,type:"international",elevation:"۱٬۳۵۹ متر",timezone:"Asia/Tehran",status:"فعال",runways:[["12L / 30R","۳٬۵۵۶ متر","۴۵ متر","آسفالت"],["12R / 30L","۳٬۶۶۱ متر","۴۵ متر","آسفالت"]]},
+    {iata:"KIH",icao:"OIBK",name:"فرودگاه بین‌المللی کیش",en:"Kish International Airport",city:"کیش",country:"ایران",lat:26.5262,lng:53.9802,type:"international",elevation:"۳۱ متر",timezone:"Asia/Tehran",status:"فعال",runways:[["09L / 27R","۳٬۶۵۹ متر","۴۵ متر","آسفالت"],["09R / 27L","۳٬۶۵۹ متر","۴۵ متر","آسفالت"]]},
+    {iata:"DXB",icao:"OMDB",name:"فرودگاه بین‌المللی دبی",en:"Dubai International Airport",city:"دبی",country:"امارات متحده عربی",lat:25.2532,lng:55.3657,type:"international",elevation:"۱۹ متر",timezone:"Asia/Dubai",status:"فعال",runways:[["12L / 30R","۴٬۰۰۰ متر","۶۰ متر","آسفالت"],["12R / 30L","۴٬۴۵۰ متر","۶۰ متر","آسفالت"]]},
+    {iata:"AUH",icao:"OMAA",name:"فرودگاه بین‌المللی زاید",en:"Zayed International Airport",city:"ابوظبی",country:"امارات متحده عربی",lat:24.4330,lng:54.6511,type:"international",elevation:"۲۷ متر",timezone:"Asia/Dubai",status:"فعال",runways:[["13R / 31L","۴٬۱۰۰ متر","۶۰ متر","آسفالت"],["13L / 31R","۴٬۱۰۰ متر","۶۰ متر","آسفالت"]]},
+    {iata:"DOH",icao:"OTHH",name:"فرودگاه بین‌المللی حمد",en:"Hamad International Airport",city:"دوحه",country:"قطر",lat:25.2731,lng:51.6081,type:"international",elevation:"۴ متر",timezone:"Asia/Qatar",status:"فعال",runways:[["16L / 34R","۴٬۸۵۰ متر","۶۰ متر","آسفالت"],["16R / 34L","۴٬۲۵۰ متر","۶۰ متر","آسفالت"]]},
+    {iata:"IST",icao:"LTFM",name:"فرودگاه استانبول",en:"Istanbul Airport",city:"استانبول",country:"ترکیه",lat:41.2753,lng:28.7519,type:"international",elevation:"۹۹ متر",timezone:"Europe/Istanbul",status:"فعال",runways:[["16L / 34R","۳٬۷۵۰ متر","۶۰ متر","آسفالت"],["16R / 34L","۳٬۷۵۰ متر","۶۰ متر","آسفالت"]]},
+    {iata:"SAW",icao:"LTFJ",name:"فرودگاه بین‌المللی صبیحه گوکچن",en:"Sabiha Gokcen International Airport",city:"استانبول",country:"ترکیه",lat:40.8986,lng:29.3092,type:"international",elevation:"۹۵ متر",timezone:"Europe/Istanbul",status:"فعال",runways:[["06 / 24","۳٬۰۰۰ متر","۴۵ متر","بتن"]]},
+    {iata:"LHR",icao:"EGLL",name:"فرودگاه هیترو لندن",en:"London Heathrow Airport",city:"لندن",country:"بریتانیا",lat:51.4700,lng:-0.4543,type:"international",elevation:"۲۵ متر",timezone:"Europe/London",status:"فعال",runways:[["09L / 27R","۳٬۹۰۲ متر","۵۰ متر","آسفالت"],["09R / 27L","۳٬۶۶۰ متر","۵۰ متر","آسفالت"]]},
+    {iata:"CDG",icao:"LFPG",name:"فرودگاه شارل دوگل",en:"Charles de Gaulle Airport",city:"پاریس",country:"فرانسه",lat:49.0097,lng:2.5479,type:"international",elevation:"۱۱۹ متر",timezone:"Europe/Paris",status:"فعال",runways:[["08L / 26R","۴٬۲۱۵ متر","۴۵ متر","آسفالت"],["09R / 27L","۴٬۲۰۰ متر","۴۵ متر","آسفالت"]]},
+    {iata:"FRA",icao:"EDDF",name:"فرودگاه فرانکفورت",en:"Frankfurt Airport",city:"فرانکفورت",country:"آلمان",lat:50.0379,lng:8.5622,type:"international",elevation:"۱۱۱ متر",timezone:"Europe/Berlin",status:"فعال",runways:[["07C / 25C","۴٬۰۰۰ متر","۶۰ متر","آسفالت"],["18 / 36","۴٬۰۰۰ متر","۴۵ متر","بتن"]]},
+    {iata:"AMS",icao:"EHAM",name:"فرودگاه اسخیپول آمستردام",en:"Amsterdam Airport Schiphol",city:"آمستردام",country:"هلند",lat:52.3105,lng:4.7683,type:"international",elevation:"۳- متر",timezone:"Europe/Amsterdam",status:"فعال",runways:[["18R / 36L","۳٬۸۰۰ متر","۶۰ متر","آسفالت"],["06 / 24","۳٬۵۰۰ متر","۴۵ متر","آسفالت"]]},
+    {iata:"JFK",icao:"KJFK",name:"فرودگاه بین‌المللی جان اف کندی",en:"John F. Kennedy International Airport",city:"نیویورک",country:"ایالات متحده",lat:40.6413,lng:-73.7781,type:"international",elevation:"۴ متر",timezone:"America/New_York",status:"فعال",runways:[["04L / 22R","۳٬۶۸۲ متر","۶۱ متر","آسفالت"],["13R / 31L","۴٬۴۲۳ متر","۶۱ متر","بتن"]]},
+    {iata:"LAX",icao:"KLAX",name:"فرودگاه بین‌المللی لس‌آنجلس",en:"Los Angeles International Airport",city:"لس‌آنجلس",country:"ایالات متحده",lat:33.9416,lng:-118.4085,type:"international",elevation:"۳۸ متر",timezone:"America/Los_Angeles",status:"فعال",runways:[["07L / 25R","۳٬۶۸۵ متر","۴۶ متر","بتن"],["06R / 24L","۳٬۱۳۵ متر","۴۶ متر","بتن"]]},
+    {iata:"YYZ",icao:"CYYZ",name:"فرودگاه بین‌المللی پیرسون تورنتو",en:"Toronto Pearson International Airport",city:"تورنتو",country:"کانادا",lat:43.6777,lng:-79.6248,type:"international",elevation:"۱۷۳ متر",timezone:"America/Toronto",status:"فعال",runways:[["05 / 23","۳٬۳۸۹ متر","۶۱ متر","آسفالت"],["15L / 33R","۳٬۳۸۹ متر","۶۱ متر","آسفالت"]]},
+    {iata:"HND",icao:"RJTT",name:"فرودگاه هاندا توکیو",en:"Tokyo Haneda Airport",city:"توکیو",country:"ژاپن",lat:35.5494,lng:139.7798,type:"international",elevation:"۶ متر",timezone:"Asia/Tokyo",status:"فعال",runways:[["04 / 22","۲٬۵۰۰ متر","۶۰ متر","آسفالت"],["16R / 34L","۳٬۰۰۰ متر","۶۰ متر","آسفالت"]]},
+    {iata:"SIN",icao:"WSSS",name:"فرودگاه چانگی سنگاپور",en:"Singapore Changi Airport",city:"سنگاپور",country:"سنگاپور",lat:1.3644,lng:103.9915,type:"international",elevation:"۷ متر",timezone:"Asia/Singapore",status:"فعال",runways:[["02L / 20R","۴٬۰۰۰ متر","۶۰ متر","آسفالت"],["02C / 20C","۴٬۰۰۰ متر","۶۰ متر","آسفالت"]]},
+    {iata:"SYD",icao:"YSSY",name:"فرودگاه سیدنی",en:"Sydney Kingsford Smith Airport",city:"سیدنی",country:"استرالیا",lat:-33.9399,lng:151.1753,type:"international",elevation:"۶ متر",timezone:"Australia/Sydney",status:"فعال",runways:[["16R / 34L","۳٬۹۶۲ متر","۴۵ متر","آسفالت"],["07 / 25","۲٬۵۳۰ متر","۴۵ متر","آسفالت"]]},
+    {iata:"CPT",icao:"FACT",name:"فرودگاه بین‌المللی کیپ‌تاون",en:"Cape Town International Airport",city:"کیپ‌تاون",country:"آفریقای جنوبی",lat:-33.9715,lng:18.6021,type:"international",elevation:"۴۶ متر",timezone:"Africa/Johannesburg",status:"فعال",runways:[["01 / 19","۳٬۲۰۱ متر","۶۱ متر","آسفالت"]]},
+    {iata:"GVA",icao:"LSGG",name:"فرودگاه ژنو",en:"Geneva Airport",city:"ژنو",country:"سوئیس",lat:46.2381,lng:6.1089,type:"regional",elevation:"۴۳۰ متر",timezone:"Europe/Zurich",status:"فعال",runways:[["04 / 22","۳٬۹۰۰ متر","۵۰ متر","بتن"]]},
+    {iata:"LCY",icao:"EGLC",name:"فرودگاه لندن سیتی",en:"London City Airport",city:"لندن",country:"بریتانیا",lat:51.5053,lng:0.0553,type:"regional",elevation:"۶ متر",timezone:"Europe/London",status:"فعال",runways:[["09 / 27","۱٬۵۰۸ متر","۳۰ متر","بتن"]]},
+    {iata:"",icao:"IR-TEST",name:"فرودگاه کوچک آزمایشی",en:"Sample Small Airfield",city:"یزد",country:"ایران",lat:31.72,lng:54.34,type:"small",elevation:"۱٬۲۳۰ متر",timezone:"Asia/Tehran",status:"فعال",runways:[["12 / 30","۹۰۰ متر","۲۰ متر","خاکی"]]},
+    {iata:"",icao:"HELI-01",name:"هلی‌پورت نمونه",en:"Sample Heliport",city:"دبی",country:"امارات متحده عربی",lat:25.205,lng:55.28,type:"heliport",elevation:"نامشخص",timezone:"Asia/Dubai",status:"فعال",runways:[]},
+    {iata:"OLD",icao:"CLOSED",name:"فرودگاه بسته نمونه",en:"Sample Closed Airport",city:"نمونه",country:"آلمان",lat:52.31,lng:13.24,type:"closed",elevation:"نامشخص",timezone:"Europe/Berlin",status:"بسته",runways:[]}
+  ];
+
+  const typeLabel = {
+    international:"بین‌المللی",
+    regional:"منطقه‌ای یا داخلی",
+    small:"کوچک",
+    heliport:"هلی‌پورت",
+    closed:"بسته"
+  };
+  const typeColor = {
+    international:"#1e63e9",
+    regional:"#0b8f88",
+    small:"#64748b",
+    heliport:"#7857d8",
+    closed:"#c74444"
+  };
+
+  const map = L.map("map", {
+    center:[28,38], zoom:3,
+    zoomControl:false,
+    dragging:false,
+    scrollWheelZoom:false,
+    doubleClickZoom:false,
+    boxZoom:false,
+    keyboard:false,
+    touchZoom:false,
+    tap:false,
+    worldCopyJump:true
+  });
+
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom:19,
+    attribution:'&copy; OpenStreetMap contributors'
+  }).addTo(map);
+
+  let mapUnlocked = false;
+  let selectedAirport = null;
+  let selectedMarker = null;
+  let sheetState = "collapsed";
+  const markers = new Map();
+
+  const mapScrim = document.getElementById("mapScrim");
+  const lockBtn = document.getElementById("lockBtn");
+  const mobileSheet = document.getElementById("mobileSheet");
+  const sheetHeader = document.getElementById("sheetHeader");
+  const sheetClose = document.getElementById("sheetClose");
+  const desktopClose = document.getElementById("desktopClose");
+  const searchInput = document.getElementById("searchInput");
+  const searchResults = document.getElementById("searchResults");
+  const clearSearch = document.getElementById("clearSearch");
+  const toast = document.getElementById("toast");
+
+  function iconFor(a){
+    const label = a.iata || "";
+    const noCode = label ? "" : " no-code";
+    return L.divIcon({
+      className:"airport-marker-shell",
+      html:`<div class="airport-marker ${a.type}${noCode}" aria-label="${escapeHtml(a.name)}">${escapeHtml(label)}</div>`,
+      iconSize: label ? [46,34] : [20,26],
+      iconAnchor: label ? [23,34] : [10,26]
+    });
+  }
+
+  AIRPORTS.forEach((a,index)=>{
+    a.id=index;
+    const marker=L.marker([a.lat,a.lng],{icon:iconFor(a),title:`${a.iata||a.icao} - ${a.name}`,riseOnHover:true}).addTo(map);
+    marker.on("click",()=>selectAirport(a,true));
+    markers.set(a.id,marker);
+  });
+
+  function unlockMap(){
+    mapUnlocked=true;
+    map.dragging.enable();
+    map.scrollWheelZoom.enable();
+    map.doubleClickZoom.enable();
+    map.boxZoom.enable();
+    map.keyboard.enable();
+    if(map.touchZoom) map.touchZoom.enable();
+    mapScrim.classList.add("hidden");
+    lockBtn.classList.remove("locked");
+    lockBtn.setAttribute("aria-label","قفل‌کردن نقشه");
+  }
+
+  function lockMap(){
+    mapUnlocked=false;
+    map.dragging.disable();
+    map.scrollWheelZoom.disable();
+    map.doubleClickZoom.disable();
+    map.boxZoom.disable();
+    map.keyboard.disable();
+    if(map.touchZoom) map.touchZoom.disable();
+    mapScrim.classList.remove("hidden");
+    lockBtn.classList.add("locked");
+    lockBtn.setAttribute("aria-label","فعال‌کردن نقشه");
+  }
+
+  document.getElementById("unlockMap").addEventListener("click",unlockMap);
+  lockBtn.addEventListener("click",()=>mapUnlocked?lockMap():unlockMap());
+  document.getElementById("zoomIn").addEventListener("click",()=>map.zoomIn());
+  document.getElementById("zoomOut").addEventListener("click",()=>map.zoomOut());
+
+  document.getElementById("locateBtn").addEventListener("click",()=>{
+    if(!navigator.geolocation){showToast("موقعیت مکانی در این مرورگر پشتیبانی نمی‌شود");return}
+    navigator.geolocation.getCurrentPosition(
+      p=>{
+        unlockMap();
+        map.flyTo([p.coords.latitude,p.coords.longitude],9,{duration:.8});
+        L.circleMarker([p.coords.latitude,p.coords.longitude],{
+          radius:7,color:"#fff",weight:3,fillColor:"#1e63e9",fillOpacity:1
+        }).addTo(map).bindTooltip("موقعیت تقریبی شما").openTooltip();
+      },
+      ()=>showToast("دسترسی به موقعیت مکانی ممکن نشد"),
+      {enableHighAccuracy:false,timeout:7000}
+    );
+  });
+
+  function visibleAirports(){
+    const bounds=map.getBounds();
+    return AIRPORTS.filter(a=>bounds.contains([a.lat,a.lng]));
+  }
+
+  function renderLists(){
+    let data=visibleAirports();
+    if(data.length===0) data=AIRPORTS;
+    const html=data.map(cardHtml).join("");
+    document.getElementById("mobileList").innerHTML=html;
+    document.getElementById("desktopList").innerHTML=html;
+    bindCards();
+    document.getElementById("sheetTitle").textContent=`${toFa(data.length)} فرودگاه در محدوده نقشه`;
+    document.getElementById("sheetSubtitle").textContent="برای مشاهده فهرست، پنل را به بالا بکشید";
+    document.getElementById("desktopTitle").textContent="فرودگاه‌های روی نقشه";
+    document.getElementById("desktopSubtitle").textContent=`${toFa(data.length)} نتیجه در محدوده فعلی`;
+  }
+
+  function cardHtml(a){
+    return `<button class="airport-card" data-id="${a.id}">
+      <span class="airport-card-code" style="background:${typeColor[a.type]}">${escapeHtml(a.iata||"—")}</span>
+      <span>
+        <span class="airport-card-name">${escapeHtml(a.name)}</span>
+        <span class="airport-card-meta">${escapeHtml(a.city)}، ${escapeHtml(a.country)} · ${typeLabel[a.type]}</span>
+      </span>
+      <span class="airport-card-arrow" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+      </span>
+    </button>`;
+  }
+
+  function bindCards(){
+    document.querySelectorAll(".airport-card").forEach(btn=>{
+      btn.addEventListener("click",()=>{
+        const a=AIRPORTS[Number(btn.dataset.id)];
+        selectAirport(a,true);
+      });
+    });
+  }
+
+  function detailHtml(a){
+    const runwayHtml=a.runways.length?a.runways.map(r=>`
+      <div class="runway-card">
+        <div class="runway-title">باند ${escapeHtml(r[0])}</div>
+        <div class="runway-grid">
+          <div class="runway-item">طول<strong>${escapeHtml(r[1])}</strong></div>
+          <div class="runway-item">عرض<strong>${escapeHtml(r[2])}</strong></div>
+          <div class="runway-item">سطح<strong>${escapeHtml(r[3])}</strong></div>
+          <div class="runway-item">وضعیت<strong>${a.status==="بسته"?"بسته":"فعال"}</strong></div>
+        </div>
+      </div>`).join(""):`<div class="source-note">اطلاعات باند برای این نمونه در دسترس نیست.</div>`;
+
+    return `<div class="detail-hero">
+      <div class="detail-top">
+        <div>
+          <div class="detail-code">${escapeHtml(a.iata||"بدون IATA")}</div>
+          <div class="detail-icao">${escapeHtml(a.icao)}</div>
+        </div>
+        <span class="status">${typeLabel[a.type]} · ${escapeHtml(a.status)}</span>
+      </div>
+      <div class="detail-name">${escapeHtml(a.name)}</div>
+      <div class="detail-location">${escapeHtml(a.en)}<br>${escapeHtml(a.city)}، ${escapeHtml(a.country)}</div>
+      <div class="actions">
+        <button class="action-btn" data-action="route" data-id="${a.id}">
+          <svg viewBox="0 0 24 24"><path d="M4 18 9 6l3 7 8 3-16 2Z"/></svg>مسیریابی
+        </button>
+        <button class="action-btn" data-action="share" data-id="${a.id}">
+          <svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="2"/><circle cx="6" cy="12" r="2"/><circle cx="18" cy="19" r="2"/><path d="m8 11 8-5M8 13l8 5"/></svg>اشتراک
+        </button>
+        <button class="action-btn" data-action="copy" data-id="${a.id}">
+          <svg viewBox="0 0 24 24"><rect x="8" y="8" width="11" height="11" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>کپی کد
+        </button>
+      </div>
+    </div>
+    <section class="section">
+      <h2>اطلاعات اصلی</h2>
+      <div class="facts">
+        <div class="fact"><div class="fact-label">کد IATA</div><div class="fact-value ltr">${escapeHtml(a.iata||"ندارد")}</div></div>
+        <div class="fact"><div class="fact-label">کد ICAO</div><div class="fact-value ltr">${escapeHtml(a.icao)}</div></div>
+        <div class="fact"><div class="fact-label">منطقه زمانی</div><div class="fact-value ltr">${escapeHtml(a.timezone)}</div></div>
+        <div class="fact"><div class="fact-label">ارتفاع</div><div class="fact-value">${escapeHtml(a.elevation)}</div></div>
+        <div class="fact"><div class="fact-label">عرض جغرافیایی</div><div class="fact-value ltr">${a.lat.toFixed(4)}</div></div>
+        <div class="fact"><div class="fact-label">طول جغرافیایی</div><div class="fact-value ltr">${a.lng.toFixed(4)}</div></div>
+      </div>
+    </section>
+    <section class="section">
+      <h2>باندها</h2>
+      ${runwayHtml}
+    </section>
+    <div class="source-note">این نسخه یک نمونه آزمایشی برای ارزیابی UI و UX است. داده‌ها در مرحله بعد به منبع کامل و به‌روزرسانی‌شونده متصل می‌شوند.</div>`;
+  }
+
+  function selectAirport(a,moveMap){
+    selectedAirport=a;
+    if(selectedMarker){
+      selectedMarker.getElement()?.querySelector(".airport-marker")?.classList.remove("selected");
+    }
+    selectedMarker=markers.get(a.id);
+    selectedMarker.getElement()?.querySelector(".airport-marker")?.classList.add("selected");
+
+    const html=detailHtml(a);
+    const mobileDetail=document.getElementById("mobileDetail");
+    const desktopDetail=document.getElementById("desktopDetail");
+    mobileDetail.innerHTML=html;
+    desktopDetail.innerHTML=html;
+    mobileDetail.classList.add("active");
+    desktopDetail.classList.add("active");
+    document.getElementById("mobileList").style.display="none";
+    document.getElementById("desktopList").style.display="none";
+    sheetClose.classList.add("visible");
+    desktopClose.classList.add("visible");
+    document.getElementById("sheetTitle").textContent=a.iata?`${a.iata} · ${a.city}`:a.city;
+    document.getElementById("sheetSubtitle").textContent=a.name;
+    document.getElementById("desktopTitle").textContent=a.iata?`${a.iata} · ${a.city}`:a.city;
+    document.getElementById("desktopSubtitle").textContent=a.name;
+    setSheetState("full");
+    bindDetailActions();
+    if(moveMap){
+      unlockMap();
+      map.flyTo([a.lat,a.lng],Math.max(map.getZoom(),8),{duration:.7});
+    }
+    searchResults.classList.remove("open");
+    searchInput.blur();
+  }
+
+  function closeDetail(){
+    if(selectedMarker){
+      selectedMarker.getElement()?.querySelector(".airport-marker")?.classList.remove("selected");
+    }
+    selectedAirport=null;
+    selectedMarker=null;
+    document.getElementById("mobileDetail").classList.remove("active");
+    document.getElementById("desktopDetail").classList.remove("active");
+    document.getElementById("mobileList").style.display="grid";
+    document.getElementById("desktopList").style.display="grid";
+    sheetClose.classList.remove("visible");
+    desktopClose.classList.remove("visible");
+    renderLists();
+    setSheetState("half");
+  }
+
+  sheetClose.addEventListener("click",e=>{e.stopPropagation();closeDetail()});
+  desktopClose.addEventListener("click",closeDetail);
+  document.addEventListener("keydown",e=>{
+    if(e.key==="Escape"&&selectedAirport)closeDetail();
+  });
+
+  function bindDetailActions(){
+    document.querySelectorAll("[data-action]").forEach(btn=>{
+      btn.addEventListener("click",async()=>{
+        const a=AIRPORTS[Number(btn.dataset.id)];
+        const action=btn.dataset.action;
+        if(action==="route"){
+          window.open(`https://www.google.com/maps/dir/?api=1&destination=${a.lat},${a.lng}`,"_blank","noopener");
+        }
+        if(action==="copy"){
+          await copyText(a.iata||a.icao);
+          showToast("کد فرودگاه کپی شد");
+        }
+        if(action==="share"){
+          const text=`${a.name} (${a.iata||a.icao}) - ${a.city}، ${a.country}`;
+          if(navigator.share){
+            try{await navigator.share({title:a.name,text,url:location.href})}catch(_){}
+          }else{
+            await copyText(text);
+            showToast("اطلاعات فرودگاه کپی شد");
+          }
+        }
+      });
+    });
+  }
+
+  function setSheetState(state){
+    sheetState=state;
+    mobileSheet.classList.remove("half","full");
+    if(state==="half")mobileSheet.classList.add("half");
+    if(state==="full")mobileSheet.classList.add("full");
+  }
+
+  sheetHeader.addEventListener("click",e=>{
+    if(e.target.closest("button"))return;
+    if(sheetState==="collapsed")setSheetState("half");
+    else if(sheetState==="half")setSheetState("full");
+    else if(!selectedAirport)setSheetState("collapsed");
+  });
+
+  let dragStartY=null,dragStartState=null;
+  sheetHeader.addEventListener("pointerdown",e=>{
+    if(e.target.closest("button"))return;
+    dragStartY=e.clientY;
+    dragStartState=sheetState;
+    sheetHeader.setPointerCapture(e.pointerId);
+  });
+  sheetHeader.addEventListener("pointerup",e=>{
+    if(dragStartY===null)return;
+    const delta=e.clientY-dragStartY;
+    if(delta<-35){
+      if(dragStartState==="collapsed")setSheetState("half");
+      else setSheetState("full");
+    }else if(delta>35){
+      if(selectedAirport){closeDetail()}
+      else if(dragStartState==="full")setSheetState("half");
+      else setSheetState("collapsed");
+    }
+    dragStartY=null;
+  });
+
+  map.on("moveend",()=>{if(!selectedAirport)renderLists()});
+
+  function doSearch(value){
+    const q=normalize(value);
+    clearSearch.classList.toggle("visible",!!value);
+    if(!q){
+      searchResults.classList.remove("open");
+      searchResults.innerHTML="";
+      return;
+    }
+    const found=AIRPORTS.filter(a=>{
+      const hay=[a.iata,a.icao,a.name,a.en,a.city,a.country].map(normalize).join(" ");
+      return hay.includes(q);
+    }).slice(0,10);
+    searchResults.innerHTML=found.length?found.map((a,i)=>`
+      <button class="search-result${i===0?" active":""}" role="option" data-id="${a.id}">
+        <span class="code">${escapeHtml(a.iata||a.icao)}</span>
+        <span><span class="result-name">${escapeHtml(a.name)}</span><span class="result-meta">${escapeHtml(a.city)}، ${escapeHtml(a.country)}</span></span>
+      </button>`).join(""):`<div style="padding:18px;text-align:center;color:#64748b;font-size:13px">نتیجه‌ای پیدا نشد</div>`;
+    searchResults.classList.add("open");
+    searchResults.querySelectorAll(".search-result").forEach(btn=>{
+      btn.addEventListener("click",()=>selectAirport(AIRPORTS[Number(btn.dataset.id)],true));
+    });
+  }
+
+  searchInput.addEventListener("input",e=>doSearch(e.target.value));
+  searchInput.addEventListener("keydown",e=>{
+    if(e.key==="Enter"){
+      const first=searchResults.querySelector(".search-result");
+      if(first)selectAirport(AIRPORTS[Number(first.dataset.id)],true);
+    }
+  });
+  clearSearch.addEventListener("click",()=>{
+    searchInput.value="";
+    doSearch("");
+    searchInput.focus();
+  });
+  document.addEventListener("click",e=>{
+    if(!e.target.closest(".search-wrap"))searchResults.classList.remove("open");
+  });
+
+  document.getElementById("menuBtn").addEventListener("click",()=>{
+    showToast("منوی کامل در مرحله بعد پروژه اضافه می‌شود");
+  });
+
+  function normalize(s){
+    return String(s||"").toLowerCase().trim()
+      .replace(/ي/g,"ی").replace(/ك/g,"ک")
+      .replace(/\s+/g," ");
+  }
+  function escapeHtml(s){
+    return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
+  }
+  function toFa(n){return String(n).replace(/\d/g,d=>"۰۱۲۳۴۵۶۷۸۹"[d])}
+  async function copyText(text){
+    try{await navigator.clipboard.writeText(text)}
+    catch(_){
+      const ta=document.createElement("textarea");ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand("copy");ta.remove();
+    }
+  }
+  let toastTimer;
+  function showToast(message){
+    toast.textContent=message;
+    toast.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer=setTimeout(()=>toast.classList.remove("show"),2200);
+  }
+
+  renderLists();
+  setTimeout(()=>map.invalidateSize(),200);
+})();
+</script>
+</body>
+</html>
